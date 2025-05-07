@@ -164,7 +164,7 @@ export default function TaskDetailsModal({ task, onClose }: { task: any; onClose
           <>
             <h2>{task.name}</h2>
             <p><strong>Description:</strong> {task.description || "No description"}</p>
-            <p><strong>Deadline:</strong> {task.deadline || "No deadline"}</p>
+            <p><strong>Deadline:</strong> {task.deadline ? new Date(task.deadline).toLocaleDateString() : "No deadline"}</p>
             <p><strong>Status:</strong> {task.status}</p>
             <ButtonContainer>
               <EditButton onClick={() => setIsEditing(true)}>Edit Task</EditButton>
