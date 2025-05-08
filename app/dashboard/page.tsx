@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import ProfileModal from "../components/ProfileModal";
@@ -180,6 +180,24 @@ export default function Home() {
 
     checkAuth();
   }, []);
+useEffect(() => {
+  const fetchUserData = async () => {
+    if(!userId) return;
+    try {
+      const response = await fetch(`http://localhost:3001/auth/user/${userId}`);
+      const data = await response.json();
+      if (response.ok) {
+        setUser(data);
+      } else {
+        console.error("Failed to fetch user data:", data.message);
+      }
+    } catch (error) {   
+      console.error("Error fetching user data:", error);
+    }
+  };  
+  fetchUserData();
+  }, [userId]);
+
 
   const handleCreateProject = async () => {
     try {
