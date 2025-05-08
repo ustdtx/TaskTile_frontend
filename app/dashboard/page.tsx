@@ -201,12 +201,13 @@ useEffect(() => {
 
   const handleCreateProject = async () => {
     try {
-      const response = await fetch("http://localhost:3001/project", {
+      const response = await fetch("http://localhost:3001/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: projectTitle,
+          name: projectTitle,
           description: projectDescription,
+          ownerId: userId,
         }),
       });
 

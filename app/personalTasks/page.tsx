@@ -22,26 +22,49 @@ const MainContent = styled.div`
 `;
 
 const TaskList = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
   margin-top: 20px;
 `;
 
-const TaskItem = styled.div`
+const TaskItem = styled.div<{ backgroundColor: string }>`
+  flex: 0 1 calc(33.333% - 20px); /* 3 items per row */
+  background-color: ${({ backgroundColor }) => backgroundColor};
   padding: 12px;
   border: 1px solid #ddd;
   border-radius: 8px;
-  margin-bottom: 10px;
   cursor: pointer;
-  background-color: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
 
   &:hover {
-    background-color: #eaf4ff;
+    transform: scale(1.05);
+  }
+
+  h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: bold;
+  }
+
+  p {
+    margin: 5px 0;
+    color: gray;
+    font-size: 14px;
+  }
+
+  .deadline {
+    font-size: 14px;
+    font-weight: bold;
+    margin-top: 10px;
   }
 `;
 
 export default function TasksPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [tasks, setTasks] = useState<{ id: string; name: string }[]>([]);
+  const [tasks, setTasks] = useState<{ id: string; name: string; description: string; deadline: string; status: string }[]>([]);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<{ id: string; name: string } | null>(null);
 
@@ -94,6 +117,21 @@ export default function TasksPage() {
     getTasks();
   }, [userId]);
 
+  const getBackgroundColor = (deadline: string, status: string) => {
+    const today = new Date();
+    const taskDeadline = new Date(deadline);
+    const timeDiff = taskDeadline.getTime() - today.getTime();
+    const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+    if (daysDiff === 0 && status !== "COMPLETED") {
+      return "rgba(255, 0, 0, 0.2)"; // Transparent red
+    } else if (daysDiff <= 2 && status === "ONGOING") {
+      return "rgba(255, 255, 0, 0.2)"; // Transparent yellow
+    } else {
+      return "rgba(0, 255, 0, 0.2)"; // Transparent green
+    }
+  };
+
   if (isAuthenticated === null) {
     return <p>Loading...</p>;
   }
@@ -106,8 +144,14 @@ export default function TasksPage() {
         <h2>Your Tasks</h2>
         <TaskList>
           {tasks.map((task) => (
-            <TaskItem key={task.id} onClick={() => setSelectedTask(task)}>
-              {task.name}
+            <TaskItem
+              key={task.id}
+              backgroundColor={getBackgroundColor(task.deadline, task.status)}
+              onClick={() => setSelectedTask(task)}
+            >
+              <h3>{task.name}</h3>
+              <p>{task.description || "No description"}</p>
+              <p className="deadline">Deadline: {new Date(task.deadline).toLocaleDateString()}</p>
             </TaskItem>
           ))}
         </TaskList>
