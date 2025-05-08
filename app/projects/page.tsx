@@ -1,147 +1,3 @@
-/*'use client';
-
-import { useEffect, useState } from 'react';
-import { useRouter } from "next/navigation";
-import styled from "styled-components";
-import Navbar from "../components/Navbar";
-
-const Container = styled.div`
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  width: 100vw;
-  overflow: hidden;
-`;
-
-const MainContent = styled.div`
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px 40px;
-  background-color: #f0f2f5;
-`;
-
-const ProjectList = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-  margin-top: 20px;
-`;
-
-const ProjectItem = styled.div`
-  flex: 0 1 calc(33.333% - 20px);
-  background-color: rgba(0, 0, 255, 0.1); 
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s ease;
-
-  &:hover {
-    transform: scale(1.05);
-  }
-
-  h3 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: bold;
-  }
-
-  p {
-    margin: 5px 0;
-    color: gray;
-    font-size: 14px;
-  }
-`;
-
-export default function ProjectsPage() {
-  interface Project {
-    id: string;
-    name: string;
-    description: string;
-  }
-
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-  const router = useRouter();
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setIsAuthenticated(false);
-        router.push("/login");
-        return;
-      }
-
-      try {
-        const response = await fetch("http://localhost:3001/auth/me", {
-          method: "GET",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        const data = await response.json();
-        if (response.ok) {
-          setIsAuthenticated(true);
-          setUserId(data.userId);
-        } else {
-          throw new Error("Invalid token");
-        }
-      } catch (error) {
-        localStorage.removeItem("token");
-        setIsAuthenticated(false);
-        router.push("/login");
-      }
-    };
-
-    checkAuth();
-  }, [router]);
-
-  useEffect(() => {
-    if (!userId) return;
-
-    fetch(`http://localhost:3001/projects/user/${userId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setProjects(
-            data.map((pm: any) => ({
-              id: pm.project.id,
-              name: pm.project.name,
-              description: pm.project.description,
-            }))
-          );
-        } else {
-          console.error("Expected array but got:", data);
-        }
-      })
-      .catch((err) => {
-        console.error("Error fetching projects:", err);
-      });
-  }, [userId]);
-
-  if (isAuthenticated === null) return <p>Loading...</p>;
-
-  return (
-    <Container>
-      <Navbar />
-
-      <MainContent>
-        <h2>Your Projects</h2>
-        <ProjectList>
-          {projects.map((project) => (
-            <ProjectItem key={project.id}>
-              <h3>{project.name}</h3>
-              <p>{project.description || "No description"}</p>
-            </ProjectItem>
-          ))}
-        </ProjectList>
-      </MainContent>
-    </Container>
-  );
-}*/
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -150,6 +6,7 @@ import styled from "styled-components";
 import Navbar from "../components/Navbar";
 import * as Dialog from '@radix-ui/react-dialog';
 import { Cross2Icon } from '@radix-ui/react-icons';
+import AddProjectTaskModal from '../components/AddProjectTaskModal';
 
 const Container = styled.div`
   display: flex;
@@ -293,7 +150,16 @@ export default function ProjectsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [members, setMembers] = useState<User[]>([]);
   const [selectedMember, setSelectedMember] = useState<string | null>(null);
+  const [taskModalIsOpen, setTaskModalIsOpen] = useState(false); // Add state for AddProjectTaskModal
   const router = useRouter();
+
+  const openTaskModal = () => {
+    setTaskModalIsOpen(true);
+  };
+
+  const closeTaskModal = () => {
+    setTaskModalIsOpen(false);
+  };
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -549,10 +415,17 @@ export default function ProjectsPage() {
                       <>
                         <ActionButton onClick={() => alert('Edit project details would go here')}>
                           Edit Project
-                        </ActionButton>
-                        <ActionButton onClick={() => router.push(`/projects/${selectedProject.id}/tasks`)}>
+                        </ActionButton>                        
+                        <ActionButton onClick={openTaskModal}>
                           Add Tasks
                         </ActionButton>
+                        {taskModalIsOpen && selectedProject && (
+                           <AddProjectTaskModal
+                           onClose={closeTaskModal}
+                           userId={userId || ""}
+                           projectId={selectedProject.id}
+                           />
+                        )}
                       </>
                     )}
                   </ButtonGroup>
