@@ -151,7 +151,7 @@ export default function TasksPage() {
             >
               <h3>{task.name}</h3>
               <p>{task.description || "No description"}</p>
-              <p className="deadline">Deadline: {new Date(task.deadline).toLocaleDateString()}</p>
+              <p className="deadline">Deadline: {new Date(task.deadline).toLocaleDateString() || "No Deadline"}</p>
             </TaskItem>
           ))}
         </TaskList>
