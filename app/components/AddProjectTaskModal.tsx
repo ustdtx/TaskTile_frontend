@@ -122,8 +122,13 @@ export default function AddProjectTaskModal({
       return;
     }
 
+    if (!deadline) {
+      alert("Please select a deadline for the task.");
+      return;
+    }
+
     try {
-      const response = await fetch("http://localhost:3001/project-tasks/create", {
+      const response = await fetch("http://localhost:3001/project-tasks/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -134,8 +139,8 @@ export default function AddProjectTaskModal({
           description,
           deadline: deadline || null,
           projectId,
-          assignedTo: assigneeId,
-          createdBy: userId,
+          assigneeId: assigneeId,
+          creatorId: userId,
         }),
       });
 
@@ -167,7 +172,7 @@ export default function AddProjectTaskModal({
         />
         <Input
           type="date"
-          placeholder="Deadline (Optional)"
+          placeholder="Deadline (Required)"
           value={deadline}
           onChange={(e) => setDeadline(e.target.value)}
         />

@@ -1,20 +1,18 @@
 'use client';
-
 import { useEffect, useState } from 'react';
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import Navbar from "../components/Navbar";
 import * as Dialog from '@radix-ui/react-dialog';
 import { Cross2Icon } from '@radix-ui/react-icons';
-import AddProjectTaskModal from '../components/AddProjectTaskModal';
+import AddProjectTaskModal from "../components/AddProjectTaskModal"; // Import AddProjectTaskModal
 
 const Container = styled.div`
   display: flex;
   flex-direction: column;
   height: 100vh;
   width: 100vw;
-  overflow: hidden;
-`;
+  overflow: hidden;`;
 
 const MainContent = styled.div`
   flex: 1;
@@ -138,7 +136,8 @@ interface Project {
 interface User {
   id: string;
   username: string;
-  isManager: boolean;
+  email: string;
+  isManager?: boolean;
 }
 
 export default function ProjectsPage() {
@@ -149,11 +148,12 @@ export default function ProjectsPage() {
   const [modalIsOpen, setModalIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [members, setMembers] = useState<User[]>([]);
-  const [selectedMember, setSelectedMember] = useState<string | null>(null);
+  const [searchResults, setSearchResults] = useState<User[]>([]);
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [taskModalIsOpen, setTaskModalIsOpen] = useState(false); // Add state for AddProjectTaskModal
   const router = useRouter();
 
-  const openTaskModal = () => {
+    const openTaskModal = () => {
     setTaskModalIsOpen(true);
   };
 
@@ -220,13 +220,13 @@ export default function ProjectsPage() {
   const openProjectModal = (project: Project) => {
     setSelectedProject(project);
     if (project.isManager) {
-      // Fetch members if user is manager
       fetch(`http://localhost:3001/projects/${project.id}/members`)
         .then(res => res.json())
         .then(data => {
           setMembers(data.map((member: any) => ({
             id: member.user.id,
             username: member.user.username,
+            email: member.user.email,
             isManager: member.isManager
           })));
         })
@@ -240,30 +240,29 @@ export default function ProjectsPage() {
     setSelectedProject(null);
     setSearchTerm('');
     setMembers([]);
-    setSelectedMember(null);
+    setSearchResults([]);
+    setSearchModalOpen(false);
   };
 
+
+
   const handleSearchUser = () => {
-    if (!searchTerm.trim()) return;
-    
+    if (!searchTerm.trim() || !selectedProject) return;
+
     fetch(`http://localhost:3001/projects/search?username=${searchTerm}`)
       .then(res => res.json())
       .then(data => {
-        if (data && !members.some(m => m.username === data.username)) {
-          setMembers([...members, {
-            id: data.id,
-            username: data.username,
-            isManager: false
-          }]);
-          setSearchTerm('');
+        if (Array.isArray(data)) {
+          setSearchResults(data);
+          setSearchModalOpen(true);
         }
       })
       .catch(err => console.error("Error searching user:", err));
   };
 
-  const addMemberToProject = () => {
-    if (!selectedProject || !selectedMember) return;
-    
+  const addMemberToProject = (username: string) => {
+    if (!selectedProject) return;
+
     fetch('http://localhost:3001/projects/add-member', {
       method: 'POST',
       headers: {
@@ -272,23 +271,19 @@ export default function ProjectsPage() {
       },
       body: JSON.stringify({
         projectId: selectedProject.id,
-        username: members.find(m => m.id === selectedMember)?.username
+        username
       })
     })
     .then(res => res.json())
-    .then(data => {
-      const updatedMembers = members.map(m => 
-        m.id === selectedMember ? {...m, isManager: false} : m
-      );
-      setMembers(updatedMembers);
-      setSelectedMember(null);
+    .then(() => {
+      setMembers(prev => [...prev, { id: '', username, email: '', isManager: false }]);
     })
     .catch(err => console.error("Error adding member:", err));
   };
 
   const promoteToManager = (memberId: string) => {
     if (!selectedProject) return;
-    
+
     fetch('http://localhost:3001/projects/update-role', {
       method: 'PATCH',
       headers: {
@@ -302,9 +297,9 @@ export default function ProjectsPage() {
       })
     })
     .then(res => res.json())
-    .then(data => {
+    .then(() => {
       const updatedMembers = members.map(m => 
-        m.id === memberId ? {...m, isManager: true} : m
+        m.id === memberId ? { ...m, isManager: true } : m
       );
       setMembers(updatedMembers);
     })
@@ -313,7 +308,7 @@ export default function ProjectsPage() {
 
   const removeMember = (memberId: string) => {
     if (!selectedProject) return;
-    
+
     fetch(`http://localhost:3001/projects/remove-member`, {
       method: 'DELETE',
       headers: {
@@ -333,7 +328,7 @@ export default function ProjectsPage() {
 
   const deleteProject = () => {
     if (!selectedProject) return;
-    
+
     if (confirm('Are you sure you want to delete this project?')) {
       fetch(`http://localhost:3001/projects/${selectedProject.id}`, {
         method: 'DELETE',
@@ -354,7 +349,6 @@ export default function ProjectsPage() {
   return (
     <Container>
       <Navbar />
-
       <MainContent>
         <h2>Your Projects</h2>
         <ProjectList>
@@ -362,7 +356,7 @@ export default function ProjectsPage() {
             <ProjectItem key={project.id} onClick={() => openProjectModal(project)}>
               <h3>{project.name}</h3>
               <p>{project.description || "No description"}</p>
-              {project.isManager && <p style={{color: 'green'}}>Manager</p>}
+              {project.isManager && <p style={{ color: 'green' }}>Manager</p>}
             </ProjectItem>
           ))}
         </ProjectList>
@@ -370,33 +364,15 @@ export default function ProjectsPage() {
 
       <Dialog.Root open={modalIsOpen} onOpenChange={setModalIsOpen}>
         <Dialog.Portal>
-          <Dialog.Overlay style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 1000,
-          }} />
-          <Dialog.Content style={{
-            position: 'fixed',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            backgroundColor: 'white',
-            padding: '20px',
-            borderRadius: '8px',
-            width: '600px',
-            maxWidth: '90%',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            zIndex: 1001,
-          }}>
+          <Dialog.Overlay style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0, 0, 0, 0.5)', zIndex: 1000 }} />
+          <Dialog.Content style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', backgroundColor: 'white', padding: '20px', borderRadius: '8px', width: '600px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto', zIndex: 1001 }}>
             <ModalContent>
               <Dialog.Close asChild>
                 <CloseButton aria-label="Close">
                   <Cross2Icon />
                 </CloseButton>
               </Dialog.Close>
-              
+
               {selectedProject && (
                 <>
                   <Dialog.Title style={{ marginBottom: '10px', fontSize: '20px' }}>
@@ -407,25 +383,20 @@ export default function ProjectsPage() {
                   </Dialog.Description>
 
                   <ButtonGroup>
-                    <ActionButton onClick={() => router.push(`/projects/${selectedProject.id}`)}>
-                      Enter Project
-                    </ActionButton>
-                    
+                    <ActionButton onClick={() => router.push(`/projects/${selectedProject.id}/${selectedProject.name  }`)}>Enter Project</ActionButton>
                     {selectedProject.isManager && (
                       <>
-                        <ActionButton onClick={() => alert('Edit project details would go here')}>
-                          Edit Project
-                        </ActionButton>                        
+                        <ActionButton onClick={() => alert('Edit project details would go here')}>Edit Project</ActionButton>
                         <ActionButton onClick={openTaskModal}>
                           Add Tasks
                         </ActionButton>
-                        {taskModalIsOpen && selectedProject && (
-                           <AddProjectTaskModal
-                           onClose={closeTaskModal}
-                           userId={userId || ""}
-                           projectId={selectedProject.id}
-                           />
-                        )}
+                              {taskModalIsOpen && selectedProject && (
+                               <AddProjectTaskModal
+                               onClose={closeTaskModal}
+                               userId={userId || ""}
+                               projectId={selectedProject.id}
+                               />
+                               )}
                       </>
                     )}
                   </ButtonGroup>
@@ -434,17 +405,9 @@ export default function ProjectsPage() {
                     <>
                       <Section>
                         <h3>Add Members</h3>
-                        <Input 
-                          type="text" 
-                          placeholder="Search username..." 
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                        />
+                        <Input type="text" placeholder="Search username..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                         <ButtonGroup>
                           <ActionButton onClick={handleSearchUser}>Search</ActionButton>
-                          {selectedMember && (
-                            <ActionButton onClick={addMemberToProject}>Add Member</ActionButton>
-                          )}
                         </ButtonGroup>
                       </Section>
 
@@ -455,21 +418,16 @@ export default function ProjectsPage() {
                             {members.map(member => (
                               <MemberItem key={member.id}>
                                 <span>
-                                  {member.username} 
-                                  {member.isManager && <span style={{color: 'green', marginLeft: '5px'}}>(Manager)</span>}
+                                  {member.username}
+                                  {member.isManager && <span style={{ color: 'green', marginLeft: '5px' }}>(Manager)</span>}
                                 </span>
                                 <div>
                                   {!member.isManager && (
-                                    <ActionButton 
-                                      onClick={() => promoteToManager(member.id)}
-                                      style={{marginRight: '5px'}}
-                                    >
+                                    <ActionButton onClick={() => promoteToManager(member.id)} style={{ marginRight: '5px' }}>
                                       Make Manager
                                     </ActionButton>
                                   )}
-                                  <DangerButton onClick={() => removeMember(member.id)}>
-                                    Remove
-                                  </DangerButton>
+                                  <DangerButton onClick={() => removeMember(member.id)}>Remove</DangerButton>
                                 </div>
                               </MemberItem>
                             ))}
@@ -479,14 +437,39 @@ export default function ProjectsPage() {
 
                       <Section>
                         <h3>Danger Zone</h3>
-                        <DangerButton onClick={deleteProject}>
-                          Delete Project
-                        </DangerButton>
+                        <DangerButton onClick={deleteProject}>Delete Project</DangerButton>
                       </Section>
                     </>
                   )}
                 </>
               )}
+            </ModalContent>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      {/* Search Results Modal */}
+      <Dialog.Root open={searchModalOpen} onOpenChange={setSearchModalOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0, 0, 0, 0.5)', zIndex: 1000 }} />
+          <Dialog.Content style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', backgroundColor: 'white', padding: '20px', borderRadius: '8px', width: '500px', maxWidth: '90%', maxHeight: '80vh', overflowY: 'auto', zIndex: 1001 }}>
+            <ModalContent>
+              <Dialog.Close asChild>
+                <CloseButton aria-label="Close">
+                  <Cross2Icon />
+                </CloseButton>
+              </Dialog.Close>
+              <h3>Search Results</h3>
+              {searchResults.map(user => (
+                <MemberItem key={user.id}>
+                  <div>
+                    <strong>{user.username}</strong><br />
+                    <span style={{ fontSize: '12px', color: '#888' }}>{user.email}</span>
+                  </div>
+                  <ActionButton onClick={() => addMemberToProject(user.username)}>Add</ActionButton>
+                </MemberItem>
+              ))}
+              {searchResults.length === 0 && <p>No users found.</p>}
             </ModalContent>
           </Dialog.Content>
         </Dialog.Portal>

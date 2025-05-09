@@ -44,6 +44,7 @@ export default function viewPage() {
       if (!userId) return;
 
       const projectId = window.location.pathname.split("/")[2]; // Extract project ID from the URL
+      const projectTitle = window.location.pathname.split("/")[3]; // Extract project title from the URL
       try {
         const response = await fetch(`http://localhost:3001/projects/${projectId}/members`, {
           method: "GET",
@@ -55,9 +56,9 @@ export default function viewPage() {
 
         if (currentUser) {
           if (currentUser.isManager) {
-            router.push(`/projects/${projectId}/Manager`);
+            router.push(`/projects/${projectId}/${projectTitle}/Manager`);
           } else {
-            router.push(`/projects/${projectId}/Member`);
+            router.push(`/projects/${projectId}/${projectTitle}/Member`);
           }
         } else {
           alert("You are not a member of this project.");

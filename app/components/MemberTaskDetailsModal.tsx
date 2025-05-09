@@ -1,5 +1,8 @@
+'use client';
 import { useState } from "react";
 import styled from "styled-components";
+import { useEffect } from "react";
+
 
 const ModalOverlay = styled.div`
   position: fixed;
@@ -87,66 +90,63 @@ const Select = styled.select`
 
 export default function TaskDetailsModal({ task, onClose }: { task: any; onClose: () => void }) {
   const [isEditing, setIsEditing] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   const [editedTask, setEditedTask] = useState({
-    name: task.name || "",
-    description: task.description || "",
-    deadline: task.deadline || "",
-    status: task.status || "ONGOING",
+    status: task.status || "ONGOING", // Only allow editing the status
   });
-  const [showConfirm, setShowConfirm] = useState(false);
 
-  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setEditedTask({ ...editedTask, [e.target.name]: e.target.value || "None" });
+  const handleEditChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setEditedTask({ ...editedTask, [e.target.name]: e.target.value });
   };
 
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        return null;
+      }
+
+      try {
+        const response = await fetch("http://localhost:3001/auth/me", {
+          method: "GET",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          setUserId(data.userId);
+        } else {
+          throw new Error("Invalid token");
+        }
+      } catch (error) {
+        localStorage.removeItem("token");
+      }
+    };
+
+    checkAuth();
+  }, []);
+
   const handleEdit = async () => {
-    if (!editedTask.name) return;
-    await fetch(`http://localhost:3001/task/${task.id}`, {
+    if (!editedTask.status) return;
+    await fetch(`http://localhost:3001/project-tasks/${task.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name: editedTask.name,
-        description: editedTask.description || "None",
-        deadline: editedTask.deadline || "None",
-        status: editedTask.status || "None",
+        status: editedTask.status,
+        editorId: userId, // Only update the status
       }),
     });
     setIsEditing(false);
-    window.location.reload(); // Refresh the page after updating the task
-  };
-
-  const handleDelete = async () => {
-    await fetch(`http://localhost:3001/task/${task.id}`, { method: "DELETE" });
-    window.location.reload(); // Refresh the page after deleting the task
+    window.location.reload(); // Refresh the page unconditionally
   };
 
   return (
     <ModalOverlay>
       <ModalContent>
         <CloseButton onClick={onClose}>&times;</CloseButton>
-        {showConfirm ? (
+        {isEditing ? (
           <>
-            <p>Are you sure you want to delete this task?</p>
-            <ButtonContainer>
-              <Button onClick={() => setShowConfirm(false)}>No</Button>
-              <DeleteButton onClick={handleDelete}>Yes</DeleteButton>
-            </ButtonContainer>
-          </>
-        ) : isEditing ? (
-          <>
-            <h2>Edit Task</h2>
-            <FormGroup>
-              <Label>Name:</Label>
-              <Input name="name" value={editedTask.name} onChange={handleEditChange} required />
-            </FormGroup>
-            <FormGroup>
-              <Label>Description:</Label>
-              <TextArea name="description" value={editedTask.description} onChange={handleEditChange} />
-            </FormGroup>
-            <FormGroup>
-              <Label>Deadline:</Label>
-              <Input name="deadline" value={editedTask.deadline} onChange={handleEditChange} type="date" />
-            </FormGroup>
+            <h2>Edit Task Status</h2>
             <FormGroup>
               <Label>Status:</Label>
               <Select name="status" value={editedTask.status} onChange={handleEditChange}>
@@ -167,8 +167,7 @@ export default function TaskDetailsModal({ task, onClose }: { task: any; onClose
             <p><strong>Deadline:</strong> {task.deadline ? new Date(task.deadline).toLocaleDateString() : "No deadline"}</p>
             <p><strong>Status:</strong> {task.status}</p>
             <ButtonContainer>
-              <EditButton onClick={() => setIsEditing(true)}>Edit Task</EditButton>
-              <DeleteButton onClick={() => setShowConfirm(true)}>Delete Task</DeleteButton>
+              <EditButton onClick={() => setIsEditing(true)}>Edit Status</EditButton>
             </ButtonContainer>
           </>
         )}

@@ -85,30 +85,41 @@ const Select = styled.select`
   padding: 5px;
 `;
 
-export default function TaskDetailsModal({ task, onClose }: { task: any; onClose: () => void }) {
+export default function ManagerTaskDetailsModal({
+  task,
+  onClose,
+  members,
+  userId,
+}: {
+  task: any;
+  onClose: () => void;
+  members: { id: string; username: string }[];
+  userId: string;
+}) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedTask, setEditedTask] = useState({
-    name: task.name || "",
+    name: task.title || "",
     description: task.description || "",
     deadline: task.deadline || "",
-    status: task.status || "ONGOING",
+    assigneeId: task.assigneeId || "",
   });
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setEditedTask({ ...editedTask, [e.target.name]: e.target.value || "None" });
+    setEditedTask({ ...editedTask, [e.target.name]: e.target.value });
   };
 
   const handleEdit = async () => {
-    if (!editedTask.name) return;
-    await fetch(`http://localhost:3001/task/${task.id}`, {
+    if (!editedTask.name || !editedTask.assigneeId) return;
+    await fetch(`http://localhost:3001/project-tasks/${task.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name: editedTask.name,
         description: editedTask.description || "None",
         deadline: editedTask.deadline || "None",
-        status: editedTask.status || "None",
+        assigneeId: editedTask.assigneeId,
+        editorId: userId, // Send the selected member's ID as assigneeId
       }),
     });
     setIsEditing(false);
@@ -116,7 +127,7 @@ export default function TaskDetailsModal({ task, onClose }: { task: any; onClose
   };
 
   const handleDelete = async () => {
-    await fetch(`http://localhost:3001/task/${task.id}`, { method: "DELETE" });
+    await fetch(`http://localhost:3001/project-tasks/${task.id}`, { method: "DELETE" });
     window.location.reload(); // Refresh the page after deleting the task
   };
 
@@ -148,11 +159,20 @@ export default function TaskDetailsModal({ task, onClose }: { task: any; onClose
               <Input name="deadline" value={editedTask.deadline} onChange={handleEditChange} type="date" />
             </FormGroup>
             <FormGroup>
-              <Label>Status:</Label>
-              <Select name="status" value={editedTask.status} onChange={handleEditChange}>
-                <option value="ONGOING">ONGOING</option>
-                <option value="PAUSED">PAUSED</option>
-                <option value="COMPLETED">COMPLETED</option>
+              <Label>Assignee:</Label>
+              <Select
+                name="assigneeId"
+                value={editedTask.assigneeId}
+                onChange={handleEditChange}
+              >
+                <option value="">Select a member</option>
+                {members
+                  .filter((member) => member.id !== userId) // Exclude the current user
+                  .map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.username}
+                    </option>
+                  ))}
               </Select>
             </FormGroup>
             <ButtonContainer>
@@ -162,10 +182,11 @@ export default function TaskDetailsModal({ task, onClose }: { task: any; onClose
           </>
         ) : (
           <>
-            <h2>{task.name}</h2>
+            <h2>{task.title}</h2>
             <p><strong>Description:</strong> {task.description || "No description"}</p>
             <p><strong>Deadline:</strong> {task.deadline ? new Date(task.deadline).toLocaleDateString() : "No deadline"}</p>
-            <p><strong>Status:</strong> {task.status}</p>
+            <p><strong>Assignee:</strong> {task.assigneeName || "None"}</p>
+
             <ButtonContainer>
               <EditButton onClick={() => setIsEditing(true)}>Edit Task</EditButton>
               <DeleteButton onClick={() => setShowConfirm(true)}>Delete Task</DeleteButton>

@@ -239,12 +239,12 @@ useEffect(() => {
         </DashboardButton>
 
         <DashboardButton onClick={() => setIsTaskModalOpen(true)}>
-          <PlaceholderLogo />
+          <ProjectImage src="/task.png" alt="Tasks Logo" />
           <Label>Personal Tasks</Label>
         </DashboardButton>
 
         <DashboardButton onClick={() => setIsProfileModalOpen(true)}>
-          <PlaceholderLogo />
+          <ProjectImage src="Basic_Ui__28186_29.jpg"/>
           <Label>Profile</Label>
         </DashboardButton>
       </ButtonGrid>
